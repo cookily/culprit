@@ -12,8 +12,8 @@ cp Info.plist "$APP_DIR/Contents/Info.plist"
 
 # 通用二进制（universal）：同一产物同时支持 Intel 与 Apple Silicon
 # swiftc 不支持 clang 式 -arch，按 target 各编一次再 lipo 合并
-swiftc -swift-version 5 -O -target x86_64-apple-macos12.0 -o "$APP_DIR/Contents/MacOS/$APP_NAME.x86_64" main.swift sampler.swift
-swiftc -swift-version 5 -O -target arm64-apple-macos12.0 -o "$APP_DIR/Contents/MacOS/$APP_NAME.arm64" main.swift sampler.swift
+swiftc -swift-version 5 -O -target x86_64-apple-macos12.0 -o "$APP_DIR/Contents/MacOS/$APP_NAME.x86_64" main.swift sampler.swift history.swift
+swiftc -swift-version 5 -O -target arm64-apple-macos12.0 -o "$APP_DIR/Contents/MacOS/$APP_NAME.arm64" main.swift sampler.swift history.swift
 lipo -create "$APP_DIR/Contents/MacOS/$APP_NAME.x86_64" "$APP_DIR/Contents/MacOS/$APP_NAME.arm64" -output "$APP_DIR/Contents/MacOS/$APP_NAME"
 rm -f "$APP_DIR/Contents/MacOS/$APP_NAME.x86_64" "$APP_DIR/Contents/MacOS/$APP_NAME.arm64"
 

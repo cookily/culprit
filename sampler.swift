@@ -9,6 +9,7 @@ struct ProcRow {
     var name: String
     var cpuPercent: Double
     var memMB: Double
+    var diskBps: Double     // 字节/秒（read+write 合计）
 }
 
 struct SystemSnapshot {
@@ -23,7 +24,7 @@ struct SystemSnapshot {
 final class Sampler {
     private(set) var last = SystemSnapshot()
 
-    private var prevProcCPU: [pid_t: UInt64] = [:]
+    private var prevProc: [pid_t: (cpu: UInt64, disk: UInt64)] = [:]
     private var prevDate: Date?
     private var prevCoreTicks: [UInt32] = []   // 平铺，每核 4 个：user sys idle nice
 
@@ -97,7 +98,7 @@ final class Sampler {
             n = Int(proc_listallpids(&pids, Int32(pids.count * MemoryLayout<pid_t>.stride)))
         }
         var rows: [ProcRow] = []
-        var newPrev: [pid_t: UInt64] = [:]
+        var newPrev: [pid_t: (cpu: UInt64, disk: UInt64)] = [:]
         if n > 0 { newPrev.reserveCapacity(n) }
         for i in 0..<max(n, 0) {
             let pid = pids[i]
@@ -111,16 +112,19 @@ final class Sampler {
             }
             guard rv == 0 else { continue }
             let cpuNS = ru.ri_user_time &+ ru.ri_system_time   // 纳秒，进程生命周期累计
-            newPrev[pid] = cpuNS
-            var cpuPct = 0.0
-            if interval > 0.5, let prev = prevProcCPU[pid] {
-                cpuPct = Double(cpuNS &- prev) / 1e9 / interval * 100
+            let diskBytes = ru.ri_diskio_bytesread &+ ru.ri_diskio_byteswritten
+            newPrev[pid] = (cpuNS, diskBytes)
+            var cpuPct = 0.0, diskBps = 0.0
+            if interval > 0.5, let prev = prevProc[pid] {
+                cpuPct = Double(cpuNS &- prev.cpu) / 1e9 / interval * 100
+                diskBps = Double(diskBytes &- prev.disk) / interval
             }
             rows.append(ProcRow(pid: pid, name: processName(pid),
                                 cpuPercent: cpuPct,
-                                memMB: Double(ru.ri_phys_footprint) / 1_048_576))
+                                memMB: Double(ru.ri_phys_footprint) / 1_048_576,
+                                diskBps: diskBps))
         }
-        prevProcCPU = newPrev
+        prevProc = newPrev
         return rows.sorted { $0.cpuPercent > $1.cpuPercent }
     }
 
