@@ -1,0 +1,39 @@
+name: Release
+
+# 推送 v* 格式的 tag 时自动构建并发布 Release（附双架构 app 安装包）
+# 构建直接复用仓库 build.sh（与本地同一套命令，避免漂移），产物在 ~/Applications/Culprit.app
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build universal app (x86_64 + arm64)
+        run: bash build.sh
+
+      - name: Package
+        run: |
+          # 清掉扩展属性，避免 zip 里出现 __MACOSX 垃圾目录
+          xattr -cr "$HOME/Applications/Culprit.app"
+          VERSION="${GITHUB_REF_NAME#v}"
+          ditto -c -k --keepParent "$HOME/Applications/Culprit.app" "Culprit-${VERSION}.zip"
+          unzip -l "Culprit-${VERSION}.zip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="Culprit-${GITHUB_REF_NAME#v}.zip"
+          gh release create "$GITHUB_REF_NAME" "$ZIP" --title "Culprit $GITHUB_REF_NAME" \
+            --notes "安装：解压 → 拖进「应用程序」→ 首次运行右键→打开（未公证应用直接双击会被 Gatekeeper 拦）。Install: unzip, drag Culprit.app into Applications, right-click → Open on first launch." \
+            || gh release upload "$GITHUB_REF_NAME" "$ZIP" --clobber
+          gh release view "$GITHUB_REF_NAME"
