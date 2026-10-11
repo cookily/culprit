@@ -9,6 +9,7 @@ APP_DIR="$HOME/Applications/$APP_NAME.app"
 
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp Info.plist "$APP_DIR/Contents/Info.plist"
+cp AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 # 通用二进制（universal）：同一产物同时支持 Intel 与 Apple Silicon
 # swiftc 不支持 clang 式 -arch，按 target 各编一次再 lipo 合并
